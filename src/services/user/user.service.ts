@@ -1,4 +1,4 @@
-import { getRepository } from 'typeorm';
+import { AppDataSource } from '../../data-source';
 
 // Entities
 import { User } from '../../entities/user/user.entity';
@@ -15,7 +15,10 @@ import {
   IUpdateUser,
   IUserQueryParams,
 } from '../../interfaces/user.interface';
-import { IDeleteById, IDetailById } from '../../interfaces/common.interface';
+import {
+  IDeleteById,
+  IDetailById,
+} from '../../interfaces/common.interface';
 
 // Errors
 import { StringError } from '../../errors/string.error';
@@ -28,12 +31,12 @@ const create = async (params: ICreateUser) => {
   item.password = await Encryption.generateHash(params.password, 10);
   item.firstName = params.firstName;
   item.lastName = params.lastName;
-  const userData = await getRepository(User).save(item);
+  const userData = await AppDataSource.getRepository(User).save(item);
   return ApiUtility.sanitizeUser(userData);
 };
 
 const login = async (params: ILoginUser) => {
-  const user = await getRepository(User)
+  const user = await AppDataSource.getRepository(User)
     .createQueryBuilder('user')
     .where('user.email = :email', { email: params.email })
     .select([
@@ -61,7 +64,9 @@ const login = async (params: ILoginUser) => {
 
 const getById = async (params: IDetailById) => {
   try {
-    const data = await getRepository(User).findOne({ id: params.id });
+    const data = await AppDataSource.getRepository(User).findOne({
+      where: { id: params.id },
+    });
     return ApiUtility.sanitizeUser(data);
   } catch (e) {
     return null;
@@ -71,34 +76,39 @@ const getById = async (params: IDetailById) => {
 const detail = async (params: IDetailById) => {
   const query = {
     where: { ...where, id: params.id },
-  }
+  };
 
-  const user = await getRepository(User).findOne(query);
+  const user = await AppDataSource.getRepository(User).findOne(query);
   if (!user) {
     throw new StringError('User is not existed');
   }
 
   return ApiUtility.sanitizeUser(user);
-}
+};
 
 const update = async (params: IUpdateUser) => {
-  const query = { ...where, id: params.id };
+  const query = {
+    where: { ...where, id: params.id },
+  };
 
-  const user = await getRepository(User).findOne(query);
+  const user = await AppDataSource.getRepository(User).findOne(query);
   if (!user) {
     throw new StringError('User is not existed');
   }
 
-  return await getRepository(User).update(query, {
+  return await AppDataSource.getRepository(User).update(query.where, {
     firstName: params.firstName,
     lastName: params.lastName,
     updatedAt: DateTimeUtility.getCurrentTimeStamp(),
   });
-}
+};
 
 const list = async (params: IUserQueryParams) => {
-  let userRepo = getRepository(User).createQueryBuilder('user');
-  userRepo = userRepo.where('user.isDeleted = :isDeleted', { isDeleted: false });
+  let userRepo =
+    AppDataSource.getRepository(User).createQueryBuilder('user');
+  userRepo = userRepo.where('user.isDeleted = :isDeleted', {
+    isDeleted: false,
+  });
 
   if (params.keyword) {
     userRepo = userRepo.andWhere(
@@ -110,9 +120,15 @@ const list = async (params: IUserQueryParams) => {
   // Pagination
   const paginationRepo = userRepo;
   const total = await paginationRepo.getMany();
-  const pagRes = ApiUtility.getPagination(total.length, params.limit, params.page);
+  const pagRes = ApiUtility.getPagination(
+    total.length,
+    params.limit,
+    params.page,
+  );
 
-  userRepo = userRepo.limit(params.limit).offset(ApiUtility.getOffset(params.limit, params.page));
+  userRepo = userRepo
+    .limit(params.limit)
+    .offset(ApiUtility.getOffset(params.limit, params.page));
   const users = await userRepo.getMany();
 
   const response = [];
@@ -125,18 +141,20 @@ const list = async (params: IUserQueryParams) => {
 };
 
 const remove = async (params: IDeleteById) => {
-  const query = { ...where, id: params.id };
+  const query = {
+    where: { ...where, id: params.id },
+  };
 
-  const user = await getRepository(User).findOne(query);
+  const user = await AppDataSource.getRepository(User).findOne(query);
   if (!user) {
     throw new StringError('User is not existed');
   }
 
-  return await getRepository(User).update(query, {
+  return await AppDataSource.getRepository(User).update(query.where, {
     isDeleted: true,
     updatedAt: DateTimeUtility.getCurrentTimeStamp(),
   });
-}
+};
 
 export default {
   create,
@@ -146,4 +164,4 @@ export default {
   update,
   list,
   remove,
-}
+};

@@ -3,7 +3,7 @@ import { Column, Entity, PrimaryGeneratedColumn, Unique, OneToMany } from 'typeo
 // Entities
 import { BaseEntity } from '../base/base.entity';
 
-@Entity('user', { orderBy: { id: 'DESC' } })
+@Entity('user_old', { orderBy: { id: 'DESC' } })
 export class User extends BaseEntity {
 
   @PrimaryGeneratedColumn({ type: 'int' })
